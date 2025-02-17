@@ -3,18 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cos_connect/data/models/user_profile.dart';
 import 'package:cos_connect/data/provider/firebase_provider.dart';
 
+import '../../data/provider/user_profile_notifier.dart';
+
 class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // 監聽 userProfileNotifierProvider 來獲取 UserProfile
-    final userProfileAsync = ref.watch(userProfileStreamProvider);
+    final userProfileState = ref.watch(userProfileProvider);
 
-    // 監聽 userProfileNotifierProvider，如果是 null 就觸發資料載入
-    ref.listen<UserProfile?>(userProfileNotifierProvider, (_, state) {
-      if (state == null) {
-        ref.read(userProfileNotifierProvider.notifier).loadUserProfile();
-      }
-    });
+    // 輸出來檢查狀態
+    if (userProfileState.isLoading) {
+      print("Loading user profile...");
+    }
+    if (userProfileState.error != null) {
+      print("Error loading user profile: ${userProfileState.error}");
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -28,18 +31,17 @@ class ProfilePage extends ConsumerWidget {
           ),
         ],
       ),
-      body: userProfileAsync.when(
-        data: (userProfile) {
-        if (userProfile == null) {
-          return Center(child: Text("User not found"));
-        }
-          return Padding(
+      body: userProfileState.isLoading
+          ? Center(child: CircularProgressIndicator())
+          : userProfileState.error != null
+          ? Center(child: Text(userProfileState.error!))
+          : Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                userProfile?.coverPhotoUrl != null && userProfile!.coverPhotoUrl!.isNotEmpty
-                    ? Image.network(userProfile.coverPhotoUrl!)
+    userProfileState.userProfile?.coverPhotoUrl != null && userProfileState.userProfile!.coverPhotoUrl!.isNotEmpty
+                    ? Image.network(userProfileState.userProfile!.coverPhotoUrl!)
                     : Container(
                         width: double.infinity,
                         height: 200,
@@ -47,16 +49,12 @@ class ProfilePage extends ConsumerWidget {
                         child: Center(child: Text("No cover photo")),
                       ),
                 SizedBox(height: 16),
-                Text("CN: ${userProfile?.cn ?? ''}", style: TextStyle(fontSize: 24)),
+                Text("CN: ${userProfileState.userProfile?.cn ?? ''}", style: TextStyle(fontSize: 24)),
                 SizedBox(height: 8),
-                Text("Bio: ${userProfile?.bio ?? ''}", style: TextStyle(fontSize: 16)),
+                Text("Bio: ${userProfileState.userProfile?.bio ?? ''}", style: TextStyle(fontSize: 16)),
               ],
             ),
-          );
-        },
-        loading: () => Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(child: Text('Error: $error')),
-      ),
+          ),
     );
   }
 }
