@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "81931429241",
+    "project_id": "cos-connect",
+    "storage_bucket": "cos-connect.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:81931429241:android:f40ab497b5da473aa5fba8",
+        "android_client_info": {
+          "package_name": "com.example.cos_connect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBltNxEmNq1z9Gupciu9_8o6A7u2CNONuc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
