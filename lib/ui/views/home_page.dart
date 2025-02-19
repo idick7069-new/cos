@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:cos_connect/ui/views/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login_page.dart';
@@ -48,6 +49,17 @@ class _HomePageState extends State<HomePage> {
                 );
               },
               child: Text("Go to Profile Page"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                log("跳轉2");
+                // 跳轉至 ProfilePage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PublicProfilePage(userId: 'BUNugzvzp0XNEryLDIBam20UHF63')),
+                );
+              },
+              child: Text("Go to Public Profile Page"),
             ),
           ],
         ),

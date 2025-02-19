@@ -10,6 +10,10 @@ import 'package:cos_connect/data/models/user_profile.dart';
 import 'package:cos_connect/data/provider/firebase_provider.dart';
 
 import '../../data/provider/user_profile_notifier.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cos_connect/data/models/user_profile.dart';
+import 'package:cos_connect/data/provider/user_profile_notifier.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   @override
@@ -24,6 +28,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   List<String> _selectedPits = [];
   List<String> _selectedRegions = [];
 
+  final List<String> _allRegions = ["北部", "中部", "南部", "東部"];
+
   @override
   void dispose() {
     _cnController.dispose();
@@ -36,7 +42,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   void initState() {
     super.initState();
     final userProfile =
-        ref.read(userProfileProvider.notifier).getCurrentUserProfile();
+    ref.read(userProfileProvider.notifier).getCurrentUserProfile();
     if (userProfile != null) {
       _selectedGender = userProfile.gender;
       _cnController.text = userProfile.cn ?? '';
@@ -76,8 +82,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 maxLines: 3,
               ),
               SizedBox(height: 16),
-              Text("坑單"),
-              Wrap(
+
+              /// 坑單選擇
+              Text("坑單", style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              _selectedPits.isEmpty
+                  ? Text("尚未加入坑單", style: TextStyle(color: Colors.grey))
+                  : Wrap(
+                spacing: 8,
                 children: _selectedPits.map((pit) {
                   return Chip(
                     label: Text(pit),
@@ -87,15 +99,64 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   );
                 }).toList(),
               ),
-              TextFormField(
-                controller: _pitController,
-                decoration: InputDecoration(labelText: "新增坑單"),
-                onFieldSubmitted: (_) => _addPit(),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _pitController,
+                      decoration: InputDecoration(labelText: "新增坑單"),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _addPit,
+                    child: Text("新增"),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _saveUserProfile, // 儲存資料
-                child: Text("儲存"),
+
+              /// 地區選擇
+              Text("選擇地區", style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: _allRegions.map((region) {
+                  final isSelected = _selectedRegions.contains(region);
+                  return ChoiceChip(
+                    label: Text(region),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedRegions.add(region);
+                        } else {
+                          _selectedRegions.remove(region);
+                        }
+                      });
+                    },
+                    selectedColor: Colors.blueAccent,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              SizedBox(height: 24),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _saveUserProfile, // 儲存資料
+                  child: Text("儲存"),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                    textStyle: TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
             ],
           ),
@@ -115,56 +176,27 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   void _saveUserProfile() async {
     final updatedUserProfile = UserProfile(
-      gender: _selectedGender, // 使用選擇的性別
+      gender: _selectedGender,
       cn: _cnController.text,
       bio: _bioController.text,
       pits: _selectedPits,
       regions: _selectedRegions,
-      coverPhotoUrl: '', // 如果有封面照片欄位，可以在這裡處理
+      coverPhotoUrl: '',
     );
 
     try {
-      // 呼叫 updateUserProfile 來更新資料並儲存到 Firestore
       await ref
           .read(userProfileProvider.notifier)
           .updateUserProfile(updatedUserProfile);
 
-      // 更新暫存資料後顯示成功訊息
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("資料儲存成功！")));
 
-      // 成功後返回到 Profile 頁面，UI 會自動更新
       Navigator.pop(context);
     } catch (e) {
-      // 儲存失敗時顯示錯誤訊息
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("儲存失敗，請稍後再試")));
     }
   }
-
-
-// ** 儲存資料到 Firestore **
-// void _saveUserProfile() async {
-//   final firebaseService = ref.read(firebaseServiceProvider);
-//   final currentUser = ref.read(userProfileProvider).value;
-//   if (currentUser == null) return;
-//
-//   final updatedUserProfile = currentUser.copyWith(
-//     gender: _selectedGender,
-//     cn: _cnController.text,
-//     bio: _bioController.text,
-//     pits: _selectedPits,
-//     regions: _selectedRegions,
-//   );
-//
-//   try {
-//     await ref.read(userProfileNotifierProvider.notifier).updateUserProfile(updatedUserProfile);
-//     ScaffoldMessenger.of(context)
-//         .showSnackBar(SnackBar(content: Text("資料儲存成功！")));
-//     Navigator.pop(context); // ✅ 返回 ProfilePage，UI 會自動更新
-//   } catch (e) {
-//     ScaffoldMessenger.of(context)
-//         .showSnackBar(SnackBar(content: Text("儲存失敗，請稍後再試")));
-//   }
-// }
 }
+

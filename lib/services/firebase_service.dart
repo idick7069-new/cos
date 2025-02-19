@@ -24,6 +24,15 @@ class FirebaseService {
     }
   }
 
+  Future<String> getUserId() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      return user.uid;
+    } else {
+      throw Exception("User not found");
+    }
+  }
+
   // 更新使用者資料
   Future<void> updateUserProfile(UserProfile userProfile) async {
     final user = _auth.currentUser;
