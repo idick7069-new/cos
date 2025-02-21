@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:cos_connect/ui/views/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'friend_request_page.dart';
 import 'login_page.dart';
 import 'profile_page.dart'; // 引入 ProfilePage
 
@@ -60,6 +61,15 @@ class _HomePageState extends State<HomePage> {
                 );
               },
               child: Text("Go to Public Profile Page"),
+            ),
+            IconButton(
+              icon: Icon(Icons.group_add),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => FriendRequestsPage()),
+                );
+              },
             ),
           ],
         ),

@@ -1,13 +1,21 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PublicProfilePage extends StatelessWidget {
+import '../../data/provider/friend_request_notifier.dart';
+
+class PublicProfilePage extends ConsumerWidget {
   final String userId;
 
   const PublicProfilePage({Key? key, required this.userId}) : super(key: key);
 
+
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final friendRequestState = ref.watch(friendRequestNotifierProvider);
+
     return Scaffold(
       appBar: AppBar(title: Text("User Profile")),
       body: FutureBuilder<DocumentSnapshot>(
@@ -43,6 +51,16 @@ class PublicProfilePage extends StatelessWidget {
                 if (userData['regions'] != null) ...userData['regions'].map<Widget>((region) => Chip(label: Text(region))).toList(),
                 SizedBox(height: 8),
                 if (userData['pits'] != null) ...userData['pits'].map<Widget>((pit) => Chip(label: Text(pit))).toList(),
+                ElevatedButton(
+                  onPressed: friendRequestState.isLoading
+                      ? null
+                      : () => ref
+                      .read(friendRequestNotifierProvider.notifier)
+                      .sendFriendRequest(userId),
+                  child: friendRequestState.isLoading
+                      ? CircularProgressIndicator()
+                      : Text("發送好友邀請"),
+                ),
               ],
             ),
           );

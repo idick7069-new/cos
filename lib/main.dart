@@ -36,9 +36,27 @@ class MyApp extends StatelessWidget {
 
   final GoRouter _router = GoRouter(
     initialLocation: '/',
-    debugLogDiagnostics: true, // 這會打印路由變動的詳細信息
+
+    redirect:  (BuildContext context, GoRouterState state){
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoginPage = state.path == '/login';
+      final isLoggedIn = user != null;
+
+      // 如果未登入且不是登入頁，重定向到登入頁
+      print('檢查 isLoginPage: $isLoginPage, isLoggedIn: $isLoggedIn');
+      if (!isLoggedIn && !isLoginPage) {
+        return '/login';
+      }
+
+      // 如果已經登入且在登入頁面，則重定向到首頁
+      if (isLoggedIn && isLoginPage) {
+        return '/'; // 已登入，跳轉到首頁
+      }
+
+      return null; // 沒有需要重定向，正常訪問當前頁面
+    },
     routes: [
-      // 根據 Firebase 登入狀態決定要前往哪個頁面
+      // 根路由
       GoRoute(
         path: '/',
         builder: (context, state) {
@@ -56,21 +74,22 @@ class MyApp extends StatelessWidget {
             },
           );
         },
-      ),
-
-      // 靜態路由
-      GoRoute(path: '/login', builder: (context, state) => LoginPage()),
-      GoRoute(path: '/home', builder: (context, state) => HomePage()),
-      GoRoute(path: '/profile', builder: (context, state) => ProfilePage()),
-      GoRoute(path: '/edit_profile', builder: (context, state) => EditProfilePage()),
-
-      // **動態路由**: 顯示特定 userId 的公開個人檔案
-      GoRoute(
-        path: '/profile/:userId',
-        builder: (context, state) {
-          final String userId = state.pathParameters['userId']!;
-          return PublicProfilePage(userId: userId);
-        },
+        // 在此路由下加入所有需要登入後才能訪問的子路由
+        routes: [
+          // 登入頁面
+          GoRoute(path: '/login', builder: (context, state) => LoginPage()),
+          // 登錄後可訪問的頁面
+          GoRoute(path: '/home', builder: (context, state) => HomePage()),
+          GoRoute(path: '/profile', builder: (context, state) => ProfilePage()),
+          GoRoute(path: '/edit_profile', builder: (context, state) => EditProfilePage()),
+          GoRoute(
+            path: '/profile/:userId',
+            builder: (context, state) {
+              final String userId = state.pathParameters['userId']!;
+              return PublicProfilePage(userId: userId);
+            },
+          ),
+        ],
       ),
     ],
   );

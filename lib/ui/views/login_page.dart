@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import '../../data/models/user_profile.dart';
 import 'home_page.dart';
 
@@ -10,8 +11,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController(text:'idick7069@gmail.com');
+  final TextEditingController _passwordController = TextEditingController(text:'123456');
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // 登入方法
@@ -41,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home'); // 登入成功後跳轉到 HomePage
+          context.go('/home'); // 登入成功後跳轉到 HomePage
         }
       }
     } catch (e) {

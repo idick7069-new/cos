@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cos_connect/data/models/user_profile.dart';
 import 'package:cos_connect/data/provider/firebase_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../data/provider/user_profile_notifier.dart';
@@ -21,7 +22,7 @@ class ProfilePage extends ConsumerWidget {
           IconButton(
             icon: Icon(Icons.edit),
             onPressed: () {
-              Navigator.pushNamed(context, '/edit_profile');
+              context.go('/edit_profile');
             },
           ),
         ],
