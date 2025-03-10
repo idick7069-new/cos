@@ -72,7 +72,7 @@ class ReservationRepository {
         .where('userId', isEqualTo: userId)
         .limit(1)
         .get();
-
+    print('移除預定 $eventId, $userId');
     if (reservationQuery.docs.isNotEmpty) {
       final reservationId = reservationQuery.docs.first.id;
 
@@ -107,6 +107,7 @@ class ReservationRepository {
   // 取得使用者的所有預定
   Future<List<Reservation>> getUserReservations() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    print('取得使用者的所有預定 $userId');
     if (userId == null) return [];
 
     final reservations = await _firestore

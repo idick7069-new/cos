@@ -34,8 +34,12 @@ class Reservation {
       userId: data['userId'] as String,
       identity: IdentityType.values[data['identity'] as int],
       character: data['character'] as String?,
-      status: ReservationStatus.values[data['status'] as int],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      status: data['status'] != null
+          ? ReservationStatus.values[data['status'] as int]
+          : ReservationStatus.pending, // 預設為待確認狀態
+      createdAt: data['createdAt'] != null
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
       updatedAt: data['updatedAt'] != null
           ? (data['updatedAt'] as Timestamp).toDate()
           : null,
