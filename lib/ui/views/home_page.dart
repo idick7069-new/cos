@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:cos_connect/ui/views/event_page.dart';
 import 'package:cos_connect/ui/views/public_profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -70,6 +71,16 @@ class _HomePageState extends State<HomePage> {
                   MaterialPageRoute(builder: (context) => FriendRequestsPage()),
                 );
               },
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // 跳轉至 ProfilePage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EventPage()),
+                );
+              },
+              child: Text("Go to Event Page"),
             ),
           ],
         ),

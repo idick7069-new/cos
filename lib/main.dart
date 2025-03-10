@@ -1,5 +1,7 @@
 import 'package:cos_connect/ui/views/edit_profile_page.dart';
+import 'package:cos_connect/ui/views/event_page.dart';
 import 'package:cos_connect/ui/views/public_profile_page.dart';
+import 'package:cos_connect/ui/views/reservation_manage_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -89,6 +91,8 @@ class MyApp extends StatelessWidget {
               return PublicProfilePage(userId: userId);
             },
           ),
+          GoRoute(path: '/event', builder: (context, state) => EventPage()),
+          GoRoute(path: '/reservation_manage', builder: (context, state) => ReservationManagePage()),
         ],
       ),
     ],
