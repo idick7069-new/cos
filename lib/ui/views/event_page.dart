@@ -223,6 +223,9 @@ class _EventPageState extends ConsumerState<EventPage> {
                                                   identity,
                                                   character: character,
                                                 );
+                                          ref
+                                            .read(eventsNotifierProvider.notifier)
+                                            .loadEvents();
                                           },
                                         );
                                       },
@@ -243,10 +246,16 @@ class _EventPageState extends ConsumerState<EventPage> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ElevatedButton.icon(
-                                    onPressed: () => ref
-                                        .read(userReservationsProvider.notifier)
-                                        .cancelReservation(
-                                            eventViewModel.reservationId!),
+                                    onPressed: () async {
+                                      await ref
+                                          .read(
+                                              userReservationsProvider.notifier)
+                                          .removeReservation(
+                                              eventViewModel.event.id);
+                                      ref
+                                          .read(eventsNotifierProvider.notifier)
+                                          .loadEvents();
+                                    },
                                     icon: const Icon(Icons.cancel),
                                     label: const Text('取消參加'),
                                     style: ElevatedButton.styleFrom(

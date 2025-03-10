@@ -1,60 +1,43 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum IdentityType { manager, photographer, coser, original } // 預設身份類別
-
-enum ReservationStatus { pending, confirmed, cancelled } // 預定狀態
+enum IdentityType { manager, photographer, coser, original }
 
 class Reservation {
   final String id;
-  final String eventId; // 參加的事件 ID
-  final String userId; // 預定的使用者 ID
-  final IdentityType identity; // 身份
-  final String? character; // 角色（可空）
-  final ReservationStatus status; // 預定狀態
-  final DateTime createdAt; // 創建時間
-  final DateTime? updatedAt; // 更新時間
+  final String eventId;
+  final String userId;
+  final IdentityType identity;
+  final String? character;
+  final DateTime createdAt;
 
   Reservation({
     required this.id,
     required this.eventId,
     required this.userId,
     required this.identity,
-    required this.status,
-    required this.createdAt,
     this.character,
-    this.updatedAt,
+    required this.createdAt,
   });
 
-  // Firestore 轉換
   factory Reservation.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Reservation(
       id: doc.id,
-      eventId: data['eventId'] as String,
-      userId: data['userId'] as String,
-      identity: IdentityType.values[data['identity'] as int],
-      character: data['character'] as String?,
-      status: data['status'] != null
-          ? ReservationStatus.values[data['status'] as int]
-          : ReservationStatus.pending, // 預設為待確認狀態
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : null,
+      eventId: data['eventId'] ?? '',
+      userId: data['userId'] ?? '',
+      identity: IdentityType.values[data['identity'] ?? 0],
+      character: data['character'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toMap() {
     return {
       'eventId': eventId,
       'userId': userId,
       'identity': identity.index,
       'character': character,
-      'status': status.index,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+      'createdAt': createdAt,
     };
   }
 }

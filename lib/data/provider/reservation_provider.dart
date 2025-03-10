@@ -8,9 +8,9 @@ final reservationRepositoryProvider =
 
 // 使用者預定狀態管理
 final userReservationsProvider =
-    StateNotifierProvider<ReservationsNotifier, List<Reservation>>((ref) {
-  return ReservationsNotifier(ref.watch(reservationRepositoryProvider));
-});
+    StateNotifierProvider<ReservationsNotifier, AsyncValue<List<Reservation>>>(
+  (ref) => ReservationsNotifier(ReservationRepository()),
+);
 
 // 特定活動的預定列表狀態管理
 final eventReservationsProvider = StateNotifierProvider.family<
@@ -44,51 +44,39 @@ class EventReservationsNotifier extends StateNotifier<List<Reservation>> {
 }
 
 // 管理使用者的預定
-class ReservationsNotifier extends StateNotifier<List<Reservation>> {
-  ReservationsNotifier(this._repository) : super([]);
-
+class ReservationsNotifier extends StateNotifier<AsyncValue<List<Reservation>>> {
   final ReservationRepository _repository;
 
-  // 載入使用者的預定
+  ReservationsNotifier(this._repository) : super(const AsyncValue.loading()) {
+    loadUserReservations();
+  }
+
   Future<void> loadUserReservations() async {
     try {
+      state = const AsyncValue.loading();
       final reservations = await _repository.getUserReservations();
-      state = reservations;
-    } catch (e) {
-      print('載入預定失敗: $e');
-      state = [];
+      state = AsyncValue.data(reservations);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
     }
   }
 
-  // 新增預定
   Future<void> addReservation(String eventId, IdentityType identity,
       {String? character}) async {
     try {
       await _repository.addReservation(eventId, identity, character: character);
       await loadUserReservations();
-    } catch (e) {
-      print('新增預定失敗: $e');
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
     }
   }
 
-  // 更新預定狀態
-  Future<void> updateStatus(
-      String reservationId, ReservationStatus newStatus) async {
-    try {
-      await _repository.updateReservationStatus(reservationId, newStatus);
-      await loadUserReservations();
-    } catch (e) {
-      print('更新預定狀態失敗: $e');
-    }
-  }
-
-  // 取消預定
-  Future<void> cancelReservation(String eventId) async {
+  Future<void> removeReservation(String eventId) async {
     try {
       await _repository.removeReservation(eventId);
       await loadUserReservations();
-    } catch (e) {
-      print('取消預定失敗: $e');
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
     }
   }
 }

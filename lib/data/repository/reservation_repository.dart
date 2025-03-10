@@ -27,8 +27,6 @@ class ReservationRepository {
       await _firestore.collection('reservations').doc(reservationId).update({
         'identity': identity.index,
         'character': character ?? '',
-        'status': ReservationStatus.pending.index,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // 確保 event 內有正確的 reservationId
@@ -42,9 +40,7 @@ class ReservationRepository {
         'userId': userId,
         'identity': identity.index,
         'character': character ?? '',
-        'status': ReservationStatus.pending.index,
         'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': null,
       });
 
       // 把 reservationId 存到 event 裡
@@ -52,14 +48,6 @@ class ReservationRepository {
         'participants': FieldValue.arrayUnion([reservationRef.id])
       });
     }
-  }
-
-  Future<void> updateReservationStatus(
-      String reservationId, ReservationStatus newStatus) async {
-    await _firestore.collection('reservations').doc(reservationId).update({
-      'status': newStatus.index,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
   }
 
   Future<void> removeReservation(String eventId) async {
@@ -72,12 +60,12 @@ class ReservationRepository {
         .where('userId', isEqualTo: userId)
         .limit(1)
         .get();
-    print('移除預定 $eventId, $userId');
+
     if (reservationQuery.docs.isNotEmpty) {
       final reservationId = reservationQuery.docs.first.id;
 
-      // 更新狀態為已取消
-      await updateReservationStatus(reservationId, ReservationStatus.cancelled);
+      // 刪除預定
+      await _firestore.collection('reservations').doc(reservationId).delete();
 
       // 從 event 內移除 reservationId
       final eventRef = _firestore.collection('events').doc(eventId);
@@ -98,16 +86,9 @@ class ReservationRepository {
             .toList());
   }
 
-  // 取消預定
-  Future<void> cancelReservation(String reservationId) async {
-    print('取消預定 $reservationId');
-    await _firestore.collection('reservations').doc(reservationId).delete();
-  }
-
   // 取得使用者的所有預定
   Future<List<Reservation>> getUserReservations() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    print('取得使用者的所有預定 $userId');
     if (userId == null) return [];
 
     final reservations = await _firestore
