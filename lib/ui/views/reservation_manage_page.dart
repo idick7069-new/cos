@@ -21,7 +21,7 @@ class ReservationManagePage extends ConsumerWidget {
     String _getIdentityText(IdentityType identity) {
       switch (identity) {
         case IdentityType.manager:
-          return '主辦方';
+          return '馬內';
         case IdentityType.photographer:
           return '攝影師';
         case IdentityType.coser:
@@ -56,9 +56,17 @@ class ReservationManagePage extends ConsumerWidget {
                     orElse: () => Event(
                       id: '',
                       title: '找不到活動',
-                      startDate: DateTime.now(),
-                      endDate: DateTime.now(),
+                      startDate: 'DateTime.now()',
+                      endDate: '',
                       participants: [],
+                      image: '',
+                      type: '',
+                      date: '',
+                      location: '',
+                      content: '',
+                      organizer: '',
+                      updateDate: '',
+                      url: '',
                     ),
                   );
 
@@ -123,7 +131,7 @@ class ReservationManagePage extends ConsumerWidget {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  '${_formatDateTime(event.startDate)} - ${_formatDateTime(event.endDate)}',
+                                  event.date,
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
                                   ),

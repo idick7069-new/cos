@@ -66,12 +66,6 @@ class ReservationRepository {
 
       // 刪除預定
       await _firestore.collection('reservations').doc(reservationId).delete();
-
-      // 從 event 內移除 reservationId
-      final eventRef = _firestore.collection('events').doc(eventId);
-      await eventRef.update({
-        'participants': FieldValue.arrayRemove([reservationId])
-      });
     }
   }
 

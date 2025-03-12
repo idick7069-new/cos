@@ -18,6 +18,34 @@ class EventPage extends ConsumerStatefulWidget {
 }
 
 class _EventPageState extends ConsumerState<EventPage> {
+  // 用於存儲事件ID和顏色的映射
+  final Map<String, Color> _eventColors = {};
+
+  // 生成隨機顏色
+  Color _getRandomColor() {
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+      Colors.indigo,
+      Colors.amber,
+      Colors.pink,
+      Colors.cyan,
+    ];
+    return colors[DateTime.now().millisecondsSinceEpoch % colors.length];
+  }
+
+  // 獲取事件的顏色
+  Color _getEventColor(String eventId) {
+    if (!_eventColors.containsKey(eventId)) {
+      _eventColors[eventId] = _getRandomColor();
+    }
+    return _eventColors[eventId]!;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +56,40 @@ class _EventPageState extends ConsumerState<EventPage> {
   DateTime _focusedDay = DateTime.now();
 
   String _formatDateTime(DateTime dateTime) {
-    return DateFormat('yyyy/MM/dd HH:mm').format(dateTime);
+    return DateFormat('yyyy/MM/dd').format(dateTime);
+  }
+
+  bool _isEventInRange(
+      DateTime selectedDate, String startDateStr, String endDateStr) {
+    try {
+      final startDate = DateTime.parse(startDateStr.replaceAll('/', '-'));
+      final endDate = DateTime.parse(endDateStr.replaceAll('/', '-'));
+
+      // 將選擇的日期設置為當天的開始時間
+      final selectedDateTime =
+          DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+
+      // 將開始和結束日期設置為當天的開始時間
+      final startDateTime =
+          DateTime(startDate.year, startDate.month, startDate.day);
+      final endDateTime = DateTime(endDate.year, endDate.month, endDate.day);
+
+      return !selectedDateTime.isBefore(startDateTime) &&
+          !selectedDateTime.isAfter(endDateTime);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool _isSameDay(DateTime day, String dateStr) {
+    try {
+      final eventDate = DateTime.parse(dateStr.replaceAll('/', '-'));
+      return day.year == eventDate.year &&
+          day.month == eventDate.month &&
+          day.day == eventDate.day;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
@@ -69,9 +130,14 @@ class _EventPageState extends ConsumerState<EventPage> {
               firstDay: DateTime(2020),
               lastDay: DateTime(2030),
               eventLoader: (day) {
-                return events
-                    .where((event) => isSameDay(event.event.startDate, day))
-                    .toList();
+                return events.where((event) {
+                  // 檢查該日期是否在事件的開始和結束日期之間
+                  return _isEventInRange(
+                    day,
+                    event.event.startDate,
+                    event.event.endDate,
+                  );
+                }).toList();
               },
               selectedDayPredicate: (day) {
                 return isSameDay(_selectedDay, day);
@@ -98,6 +164,33 @@ class _EventPageState extends ConsumerState<EventPage> {
                 titleCentered: true,
                 formatButtonVisible: false,
               ),
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (context, date, events) {
+                  if (events.isNotEmpty) {
+                    return Positioned(
+                      bottom: 1,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: events.map((event) {
+                          final eventId = (event as dynamic).event?.id;
+                          if (eventId == null) return const SizedBox.shrink();
+
+                          return Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _getEventColor(eventId),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    );
+                  }
+                  return null;
+                },
+              ),
             ),
           ),
           Expanded(
@@ -106,8 +199,10 @@ class _EventPageState extends ConsumerState<EventPage> {
               padding: const EdgeInsets.all(8),
               itemBuilder: (context, index) {
                 final eventViewModel = events[index];
-                if (_selectedDay.isAfter(eventViewModel.event.startDate) &&
-                    _selectedDay.isBefore(eventViewModel.event.endDate)) {
+                if (_isEventInRange(
+                    _selectedDay,
+                    eventViewModel.event.startDate,
+                    eventViewModel.event.endDate)) {
                   return Card(
                     elevation: 2,
                     margin: const EdgeInsets.symmetric(
@@ -195,7 +290,7 @@ class _EventPageState extends ConsumerState<EventPage> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  '${_formatDateTime(eventViewModel.event.startDate)} - ${_formatDateTime(eventViewModel.event.endDate)}',
+                                  eventViewModel.event.date,
                                   style: TextStyle(
                                     color: Colors.grey.shade600,
                                   ),
@@ -223,9 +318,10 @@ class _EventPageState extends ConsumerState<EventPage> {
                                                   identity,
                                                   character: character,
                                                 );
-                                          ref
-                                            .read(eventsNotifierProvider.notifier)
-                                            .loadEvents();
+                                            ref
+                                                .read(eventsNotifierProvider
+                                                    .notifier)
+                                                .loadEvents();
                                           },
                                         );
                                       },
