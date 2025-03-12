@@ -7,6 +7,43 @@ const { logger } = require('firebase-functions/v2');
 
 admin.initializeApp();
 
+// 解析時間字串函數
+function parseEventDate(dateStr) {
+  try {
+    // 移除多餘空格
+    dateStr = dateStr.trim();
+
+    // 處理日期範圍，用 ~ 分割
+    let [startDate, endDate] = dateStr.split('~').map(d => d.trim());
+
+    // 如果沒有結束日期，則與開始日期相同
+    if (!endDate) {
+      endDate = startDate;
+    }
+
+    // 轉換日期格式
+    const formatDate = (dateStr) => {
+      if (!dateStr) return null;
+
+      // 匹配 YYYY-MM-DD(週) 格式，取出年月日
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const [_, year, month, day] = match;
+        return `${year}/${month}/${day}`;
+      }
+      return null;
+    };
+
+    return {
+      startDate: formatDate(startDate),
+      endDate: formatDate(endDate)
+    };
+  } catch (error) {
+    logger.warn('解析時間失敗:', error);
+    return { startDate: null, endDate: null };
+  }
+}
+
 async function runScraper() {
   try {
     logger.info('開始執行爬蟲');
@@ -39,7 +76,12 @@ async function runScraper() {
         $(elem).find('.list_smi_lsit li').each((j, li) => {
           const label = $(li).find('.label').text().trim();
           const value = $(li).text().replace(label, '').trim();
-          if (label.includes('活動時間')) event.date = value;
+          if (label.includes('活動時間')) {
+            event.date = value; // 保留原始時間字串
+            const { startDate, endDate } = parseEventDate(value);
+            event.startDate = startDate;
+            event.endDate = endDate;
+          }
           else if (label.includes('活動會場')) event.location = value;
           else if (label.includes('活動內容')) event.content = value;
           else if (label.includes('主辦單位')) event.organizer = value;
@@ -47,6 +89,7 @@ async function runScraper() {
 
         event.updateDate = $(elem).find('.update_date').text().trim() || '';
         event.id = eventId;
+        event.url = `https://www.doujin.com.tw/events/info/${eventId}`;
         events.push({ id: eventId, data: event });
       } catch (error) {
         logger.warn(`解析第 ${i + 1} 個活動時發生錯誤:`, error);
@@ -59,16 +102,38 @@ async function runScraper() {
 
     logger.info(`解析完成，找到 ${events.length} 個活動`);
 
+    // 獲取現有的活動資料
+    const existingEvents = await Promise.all(
+      events.map(async (event) => {
+        const doc = await admin.firestore().collection('events').doc(event.id).get();
+        return { id: event.id, exists: doc.exists };
+      })
+    );
+
+    // 過濾出需要新增的活動
+    const newEvents = events.filter(event =>
+      !existingEvents.find(existing => existing.id === event.id && existing.exists)
+    );
+
+    if (newEvents.length === 0) {
+      logger.info('沒有新的活動需要新增');
+      return { success: true, message: '沒有新的活動需要新增' };
+    }
+
+    // 使用批次寫入新增活動
     const batch = admin.firestore().batch();
-    events.forEach((event) => {
+    newEvents.forEach((event) => {
       const docRef = admin.firestore().collection('events').doc(event.id);
       batch.set(docRef, event.data);
     });
 
     await batch.commit();
-    logger.info(`成功儲存 ${events.length} 筆活動資料到 Firestore`);
+    logger.info(`成功新增 ${newEvents.length} 筆新活動資料到 Firestore`);
 
-    return { success: true, message: `儲存 ${events.length} 筆資料` };
+    return {
+      success: true,
+      message: `新增 ${newEvents.length} 筆新資料，共掃描 ${events.length} 筆資料`
+    };
   } catch (error) {
     logger.error('爬蟲執行失敗:', error);
     throw new Error(`爬蟲失敗: ${error.message}`);
