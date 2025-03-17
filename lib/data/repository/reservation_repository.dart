@@ -5,29 +5,28 @@ import '../models/reservation.dart';
 class ReservationRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<void> addReservation(String eventId, IdentityType identity,
-      {String? character}) async {
+  Future<void> addReservation(Reservation reservation) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
+    // 檢查是否已經預定過這個活動
     final reservationQuery = await _firestore
         .collection('reservations')
-        .where('eventId', isEqualTo: eventId)
+        .where('eventId', isEqualTo: reservation.eventId)
         .where('userId', isEqualTo: userId)
         .limit(1)
         .get();
 
-    final eventRef = _firestore.collection('events').doc(eventId);
+    final eventRef = _firestore.collection('events').doc(reservation.eventId);
 
     if (reservationQuery.docs.isNotEmpty) {
       // 已有預定，更新資料
       final reservationDoc = reservationQuery.docs.first;
       final reservationId = reservationDoc.id;
 
-      await _firestore.collection('reservations').doc(reservationId).update({
-        'identity': identity.index,
-        'character': character ?? '',
-      });
+      await _firestore.collection('reservations').doc(reservationId).update(
+            reservation.toMap()..remove('id'), // 移除 id 欄位，因為不需要更新
+          );
 
       // 確保 event 內有正確的 reservationId
       await eventRef.update({
@@ -35,18 +34,23 @@ class ReservationRepository {
       });
     } else {
       // 尚無預定，新增一筆
-      final reservationRef = await _firestore.collection('reservations').add({
-        'eventId': eventId,
-        'userId': userId,
-        'identity': identity.index,
-        'character': character ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      final reservationRef = await _firestore.collection('reservations').add(
+            reservation.toMap()..remove('id'), // 移除 id 欄位，因為 Firestore 會自動生成
+          );
 
       // 把 reservationId 存到 event 裡
       await eventRef.update({
         'participants': FieldValue.arrayUnion([reservationRef.id])
       });
+
+      // 如果是子活動，也更新父活動的參與者列表
+      if (reservation.parentEventId != null) {
+        final parentEventRef =
+            _firestore.collection('events').doc(reservation.parentEventId);
+        await parentEventRef.update({
+          'participants': FieldValue.arrayUnion([reservationRef.id])
+        });
+      }
     }
   }
 
@@ -62,7 +66,24 @@ class ReservationRepository {
         .get();
 
     if (reservationQuery.docs.isNotEmpty) {
-      final reservationId = reservationQuery.docs.first.id;
+      final reservationDoc = reservationQuery.docs.first;
+      final reservationId = reservationDoc.id;
+      final reservation = Reservation.fromFirestore(reservationDoc);
+
+      // 從 event 中移除 reservationId
+      final eventRef = _firestore.collection('events').doc(eventId);
+      await eventRef.update({
+        'participants': FieldValue.arrayRemove([reservationId])
+      });
+
+      // 如果是子活動，也從父活動中移除
+      if (reservation.parentEventId != null) {
+        final parentEventRef =
+            _firestore.collection('events').doc(reservation.parentEventId);
+        await parentEventRef.update({
+          'participants': FieldValue.arrayRemove([reservationId])
+        });
+      }
 
       // 刪除預定
       await _firestore.collection('reservations').doc(reservationId).delete();
@@ -94,5 +115,33 @@ class ReservationRepository {
     return reservations.docs
         .map((doc) => Reservation.fromFirestore(doc))
         .toList();
+  }
+
+  // 取得使用者對特定活動的所有預定（包括多天活動的所有天數）
+  Future<List<Reservation>> getUserReservationsForEvent(String eventId) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return [];
+
+    final reservations = await _firestore
+        .collection('reservations')
+        .where('userId', isEqualTo: userId)
+        .where('eventId', isEqualTo: eventId)
+        .get();
+
+    return reservations.docs
+        .map((doc) => Reservation.fromFirestore(doc))
+        .toList();
+  }
+
+  // 檢查使用者是否已經預定了某一天
+  Future<bool> hasReservationForDay(String eventId, String userId) async {
+    final reservations = await _firestore
+        .collection('reservations')
+        .where('eventId', isEqualTo: eventId)
+        .where('userId', isEqualTo: userId)
+        .limit(1)
+        .get();
+
+    return reservations.docs.isNotEmpty;
   }
 }

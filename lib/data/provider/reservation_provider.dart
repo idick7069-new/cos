@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repository/reservation_repository.dart';
 import '../models/reservation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'events_notifier.dart';
+import '../models/event.dart';
+import '../../ui/views/model/event_view_model.dart';
 
 // 提供 ReservationRepository
 final reservationRepositoryProvider =
@@ -9,7 +13,10 @@ final reservationRepositoryProvider =
 // 使用者預定狀態管理
 final userReservationsProvider =
     StateNotifierProvider<ReservationsNotifier, AsyncValue<List<Reservation>>>(
-  (ref) => ReservationsNotifier(ReservationRepository()),
+  (ref) => ReservationsNotifier(
+    ref.watch(reservationRepositoryProvider),
+    ref.watch(eventsNotifierProvider.notifier),
+  ),
 );
 
 // 特定活動的預定列表狀態管理
@@ -44,10 +51,13 @@ class EventReservationsNotifier extends StateNotifier<List<Reservation>> {
 }
 
 // 管理使用者的預定
-class ReservationsNotifier extends StateNotifier<AsyncValue<List<Reservation>>> {
+class ReservationsNotifier
+    extends StateNotifier<AsyncValue<List<Reservation>>> {
   final ReservationRepository _repository;
+  final EventsNotifier _eventsNotifier;
 
-  ReservationsNotifier(this._repository) : super(const AsyncValue.loading()) {
+  ReservationsNotifier(this._repository, this._eventsNotifier)
+      : super(const AsyncValue.loading()) {
     loadUserReservations();
   }
 
@@ -64,8 +74,45 @@ class ReservationsNotifier extends StateNotifier<AsyncValue<List<Reservation>>> 
   Future<void> addReservation(String eventId, IdentityType identity,
       {String? character}) async {
     try {
-      await _repository.addReservation(eventId, identity, character: character);
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      final eventViewModel = _eventsNotifier.state.firstWhere(
+        (vm) => vm.event.id == eventId,
+        orElse: () => EventViewModel(
+          event: Event(
+            id: '',
+            title: '',
+            startDate: '',
+            endDate: '',
+            participants: [],
+            image: '',
+            type: '',
+            date: '',
+            location: '',
+            content: '',
+            organizer: '',
+            updateDate: '',
+            url: '',
+          ),
+          isParticipating: false,
+        ),
+      );
+
+      if (eventViewModel.event.id.isEmpty) return;
+
+      final reservation = Reservation(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        eventId: eventId,
+        userId: userId,
+        identity: identity,
+        character: character,
+        createdAt: DateTime.now(),
+      );
+
+      await _repository.addReservation(reservation);
       await loadUserReservations();
+      await _eventsNotifier.loadEvents();
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     }

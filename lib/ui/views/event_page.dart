@@ -94,6 +94,7 @@ class _EventPageState extends ConsumerState<EventPage> {
 
   @override
   Widget build(BuildContext context) {
+    final eventsNotifier = ref.watch(eventsNotifierProvider.notifier);
     final events = ref.watch(eventsNotifierProvider);
 
     return Scaffold(
@@ -130,14 +131,7 @@ class _EventPageState extends ConsumerState<EventPage> {
               firstDay: DateTime(2020),
               lastDay: DateTime(2030),
               eventLoader: (day) {
-                return events.where((event) {
-                  // 檢查該日期是否在事件的開始和結束日期之間
-                  return _isEventInRange(
-                    day,
-                    event.event.startDate,
-                    event.event.endDate,
-                  );
-                }).toList();
+                return eventsNotifier.getEventsForDate(day);
               },
               selectedDayPredicate: (day) {
                 return isSameDay(_selectedDay, day);
@@ -199,10 +193,10 @@ class _EventPageState extends ConsumerState<EventPage> {
               padding: const EdgeInsets.all(8),
               itemBuilder: (context, index) {
                 final eventViewModel = events[index];
-                if (_isEventInRange(
-                    _selectedDay,
-                    eventViewModel.event.startDate,
-                    eventViewModel.event.endDate)) {
+                final eventsForSelectedDay =
+                    eventsNotifier.getEventsForDate(_selectedDay);
+
+                if (eventsForSelectedDay.contains(eventViewModel)) {
                   return Card(
                     elevation: 2,
                     margin: const EdgeInsets.symmetric(
