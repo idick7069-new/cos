@@ -8,6 +8,7 @@ class Reservation {
   final String userId;
   final IdentityType identity;
   final String? character;
+  final String? note;
   final DateTime createdAt;
   final String? parentEventId;
 
@@ -17,6 +18,7 @@ class Reservation {
     required this.userId,
     required this.identity,
     this.character,
+    this.note,
     required this.createdAt,
     this.parentEventId,
   });
@@ -29,6 +31,7 @@ class Reservation {
       userId: data['userId'] ?? '',
       identity: IdentityType.values[data['identity'] ?? 0],
       character: data['character'],
+      note: data['note'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       parentEventId: data['parentEventId'],
     );
@@ -40,6 +43,7 @@ class Reservation {
       'userId': userId,
       'identity': identity.index,
       'character': character,
+      'note': note,
       'createdAt': createdAt,
       'parentEventId': parentEventId,
     };
