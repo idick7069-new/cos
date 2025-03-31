@@ -12,28 +12,51 @@ import '../../data/provider/events_notifier.dart';
 import '../../data/provider/share_page_provider.dart';
 import 'model/event_view_model.dart';
 
-class ReservationSharePage extends ConsumerWidget {
+class ReservationSharePage extends ConsumerStatefulWidget {
   final List<EventViewModel>? eventViewModels;
   final List<Reservation>? reservations;
-  final ScreenshotController _screenshotController = ScreenshotController();
-  final ImagePicker _picker = ImagePicker();
-  bool _isInitialized = false;
+  final bool isPublic;
 
-  ReservationSharePage({
+  const ReservationSharePage({
     Key? key,
     this.eventViewModels,
     this.reservations,
+    this.isPublic = false,
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 只在第一次構建時初始化數據
-    if (!_isInitialized &&
-        eventViewModels != null &&
-        eventViewModels!.isNotEmpty) {
+  _ReservationSharePageState createState() => _ReservationSharePageState();
+}
+
+class _ReservationSharePageState extends ConsumerState<ReservationSharePage> {
+  final ScreenshotController _screenshotController = ScreenshotController();
+  final ImagePicker _picker = ImagePicker();
+  bool _isInitialized = false;
+  bool _isUpdatingControllers = false;
+
+  // 文本輸入控制器
+  late final TextEditingController _locationController;
+  late final TextEditingController _nameController;
+  late final TextEditingController _noteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationController = TextEditingController();
+    _nameController = TextEditingController();
+    _noteController = TextEditingController();
+
+    _locationController.addListener(_handleLocationChange);
+    _nameController.addListener(_handleNameChange);
+    _noteController.addListener(_handleNoteChange);
+
+    // 初始化數據
+    if (!widget.isPublic &&
+        widget.eventViewModels != null &&
+        widget.eventViewModels!.isNotEmpty) {
       _isInitialized = true;
-      final firstEvent = eventViewModels!.first;
-      final reservation = reservations?.firstWhere(
+      final firstEvent = widget.eventViewModels!.first;
+      final reservation = widget.reservations?.firstWhere(
         (r) => r.eventId == firstEvent.event.id,
         orElse: () => Reservation(
           id: '',
@@ -52,17 +75,166 @@ class ReservationSharePage extends ConsumerWidget {
             );
       });
     }
+  }
 
+  void _handleLocationChange() {
+    if (!_isUpdatingControllers) {
+      ref
+          .read(sharePageProvider.notifier)
+          .setLocation(_locationController.text);
+    }
+  }
+
+  void _handleNameChange() {
+    if (!_isUpdatingControllers) {
+      ref.read(sharePageProvider.notifier).setName(_nameController.text);
+    }
+  }
+
+  void _handleNoteChange() {
+    if (!_isUpdatingControllers) {
+      ref.read(sharePageProvider.notifier).setNote(_noteController.text);
+    }
+  }
+
+  @override
+  void dispose() {
+    _locationController.removeListener(_handleLocationChange);
+    _nameController.removeListener(_handleNameChange);
+    _noteController.removeListener(_handleNoteChange);
+    _locationController.dispose();
+    _nameController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  void _updateTextControllers(SharePageState state) {
+    if (_isUpdatingControllers) return;
+    _isUpdatingControllers = true;
+    try {
+      if (_locationController.text != state.location) {
+        _locationController.text = state.location;
+      }
+      if (_nameController.text != state.name) {
+        _nameController.text = state.name;
+      }
+      if (_noteController.text != state.note) {
+        _noteController.text = state.note;
+      }
+    } finally {
+      _isUpdatingControllers = false;
+    }
+  }
+
+  Future<void> _pickImage(int day) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        ref.read(sharePageProvider.notifier).setPhoto(day, File(image.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('選擇圖片失敗：$e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareImage() async {
+    try {
+      final imageFile = await _screenshotController.capture();
+      if (imageFile == null) return;
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/share_image.png');
+      await file.writeAsBytes(imageFile);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: '我的預定',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('分享失敗：$e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildPhotoUploadGrid(SharePageState state) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: state.photos.length,
+      itemBuilder: (context, index) {
+        final photo = state.photos[index];
+        return InkWell(
+          onTap: () => _pickImage(index),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: photo != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      photo,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate,
+                          size: 32, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text(
+                        '第 ${index + 1} 天\n點擊上傳照片',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(sharePageProvider);
-    final firstEvent = eventViewModels?.first;
+    final firstEvent = widget.eventViewModels?.first;
+
+    // 更新控制器的值
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _updateTextControllers(state);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('分享預定'),
+        title: Text(widget.isPublic ? '建立分享卡片' : '分享預定'),
         actions: [
           IconButton(
             icon: Icon(Icons.share),
-            onPressed: () => _shareImage(context),
+            onPressed: _shareImage,
           ),
         ],
       ),
@@ -81,8 +253,8 @@ class ReservationSharePage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 活動 Logo
-                  if (firstEvent?.event.image != null)
+                  // 活動 Logo（只在非公開模式顯示）
+                  if (!widget.isPublic && firstEvent?.event.image != null)
                     Container(
                       height: 80,
                       width: double.infinity,
@@ -102,7 +274,7 @@ class ReservationSharePage extends ConsumerWidget {
                       ),
                     ),
 
-                  SizedBox(height: 16),
+                  if (!widget.isPublic) SizedBox(height: 16),
 
                   // 活動地點
                   Text(
@@ -114,9 +286,7 @@ class ReservationSharePage extends ConsumerWidget {
                   ),
                   SizedBox(height: 8),
                   TextField(
-                    onChanged: (value) =>
-                        ref.read(sharePageProvider.notifier).setLocation(value),
-                    controller: TextEditingController(text: state.location),
+                    controller: _locationController,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.grey[100],
@@ -181,9 +351,7 @@ class ReservationSharePage extends ConsumerWidget {
                   ),
                   SizedBox(height: 8),
                   TextField(
-                    onChanged: (value) =>
-                        ref.read(sharePageProvider.notifier).setName(value),
-                    controller: TextEditingController(text: state.name),
+                    controller: _nameController,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.grey[100],
@@ -210,9 +378,7 @@ class ReservationSharePage extends ConsumerWidget {
                   ),
                   SizedBox(height: 8),
                   TextField(
-                    onChanged: (value) =>
-                        ref.read(sharePageProvider.notifier).setNote(value),
-                    controller: TextEditingController(text: state.note),
+                    controller: _noteController,
                     maxLines: 3,
                     decoration: InputDecoration(
                       filled: true,
@@ -228,98 +394,13 @@ class ReservationSharePage extends ConsumerWidget {
                   SizedBox(height: 16),
 
                   // 照片上傳區域
-                  _buildPhotoUploadGrid(state, ref),
+                  if (!widget.isPublic) _buildPhotoUploadGrid(state),
                 ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Future<void> _pickImage(WidgetRef ref, int day) async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
-      );
-      if (image != null) {
-        ref.read(sharePageProvider.notifier).setPhoto(day, File(image.path));
-      }
-    } catch (e) {
-      print("error: $e");
-      // 錯誤處理將在 build 方法中處理
-    }
-  }
-
-  Future<void> _shareImage(BuildContext context) async {
-    try {
-      final imageFile = await _screenshotController.capture();
-      if (imageFile == null) return;
-
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/share_image.png');
-      await file.writeAsBytes(imageFile);
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: '我的預定',
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('分享失敗：$e')),
-      );
-    }
-  }
-
-  Widget _buildPhotoUploadGrid(SharePageState state, WidgetRef ref) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: state.photos.length,
-      itemBuilder: (context, index) {
-        final photo = state.photos[index];
-        return InkWell(
-          onTap: () => _pickImage(ref, index),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: photo != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      photo,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_photo_alternate,
-                          size: 32, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text(
-                        '第 ${index + 1} 天\n點擊上傳照片',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        );
-      },
     );
   }
 
