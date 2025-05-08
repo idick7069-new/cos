@@ -27,7 +27,7 @@ class ReservationManagePage extends ConsumerWidget {
         case IdentityType.coser:
           return 'Coser';
         case IdentityType.original:
-          return '原創';
+          return '本體';
       }
     }
 

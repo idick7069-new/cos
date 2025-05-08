@@ -157,6 +157,7 @@ class _GroupPageState extends State<GroupPage> {
                     getReservationsForEventDay(eventId, dayStr);
 
                 return _EventCard(
+                  groupId: widget.groupId,
                   event: event,
                   eventReservations: eventReservations,
                   imageUrl: event['imageUrl'] ?? '',
@@ -176,12 +177,13 @@ class _EventCard extends StatefulWidget {
   final List<DocumentSnapshot> eventReservations;
   final String imageUrl;
   final String day;
-
+  final String groupId;
   const _EventCard({
     required this.event,
     required this.eventReservations,
     required this.imageUrl,
     required this.day,
+    required this.groupId,
     Key? key,
   }) : super(key: key);
 
@@ -219,13 +221,48 @@ class _EventCardState extends State<_EventCard> {
                 Text('參加人數：${widget.eventReservations.length}'),
               ],
             ),
-            trailing: IconButton(
-              icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
-              onPressed: () {
-                setState(() {
-                  expanded = !expanded;
-                });
-              },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  child: Text('我要出戰'),
+                  onPressed: () async {
+                    final result = await showDialog<Map<String, dynamic>>(
+                      context: context,
+                      builder: (context) => _JoinDialog(
+                        eventId: widget.event['id'] ?? '',
+                        day: widget.day,
+                      ),
+                    );
+                    if (result != null) {
+                      // 新增 reservation
+                      await FirebaseFirestore.instance
+                          .collection('reservations')
+                          .add({
+                        'eventId': widget.event['id'] ?? '',
+                        'day': widget.day,
+                        'name': result['name'],
+                        'identity': result['identity'],
+                        'character': result['character'],
+                        'createdAt': DateTime.now(),
+                        'groupId': widget.groupId,
+                      });
+                      if (mounted) {
+                        // 重新刷新頁面
+                        (context as Element).markNeedsBuild();
+                      }
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+                  onPressed: () {
+                    setState(() {
+                      expanded = !expanded;
+                    });
+                  },
+                ),
+              ],
             ),
           ),
           if (expanded)
@@ -237,15 +274,112 @@ class _EventCardState extends State<_EventCard> {
                     ? [Text('當日無預定')]
                     : widget.eventReservations.map((r) {
                         final data = r.data() as Map<String, dynamic>;
-                        return ListTile(
-                          title: Text(data['character'] ?? '無角色'),
-                          subtitle: Text('用戶: ${data['userId'] ?? ''}'),
+                        final identityIndex = data['identity'] ?? 0;
+                        final identity = IdentityType.values[identityIndex];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('參加者：${data['name'] ?? ''}'),
+                            Text('身份：${getIdentityText(identity)}'),
+                            if (identity == IdentityType.coser)
+                              Text('角色：${data['character'] ?? ''}'),
+                            Divider(),
+                          ],
                         );
                       }).toList(),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+// 新增Dialog
+class _JoinDialog extends StatefulWidget {
+  final String eventId;
+  final String day;
+  const _JoinDialog({required this.eventId, required this.day, Key? key})
+      : super(key: key);
+
+  @override
+  State<_JoinDialog> createState() => _JoinDialogState();
+}
+
+enum IdentityType { manager, photographer, coser, original }
+
+String getIdentityText(IdentityType type) {
+  switch (type) {
+    case IdentityType.manager:
+      return '馬內';
+    case IdentityType.photographer:
+      return '攝影師';
+    case IdentityType.coser:
+      return 'Coser';
+    case IdentityType.original:
+      return '本體';
+  }
+}
+
+class _JoinDialogState extends State<_JoinDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _characterController = TextEditingController();
+  IdentityType? _selectedIdentity;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('我要出戰'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(labelText: '名稱（CN）'),
+              validator: (v) => v == null || v.isEmpty ? '必填' : null,
+            ),
+            SizedBox(height: 12),
+            DropdownButtonFormField<IdentityType>(
+              value: _selectedIdentity,
+              decoration: InputDecoration(labelText: '身份'),
+              items: IdentityType.values
+                  .map((type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(getIdentityText(type)),
+                      ))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedIdentity = v),
+              validator: (v) => v == null ? '必選' : null,
+            ),
+            SizedBox(height: 12),
+            TextFormField(
+              controller: _characterController,
+              decoration: InputDecoration(labelText: '角色（選填）'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              Navigator.of(context).pop({
+                'name': _nameController.text,
+                'identity': _selectedIdentity!.index,
+                'character': _characterController.text,
+              });
+            }
+          },
+          child: Text('完成'),
+        ),
+      ],
     );
   }
 }
