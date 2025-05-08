@@ -4,8 +4,13 @@ const admin = require('firebase-admin');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { logger } = require('firebase-functions/v2');
+const { Storage } = require('@google-cloud/storage');
+const path = require('path');
 
 admin.initializeApp();
+const storage = new Storage();
+const bucketName = 'cos-connect.firebasestorage.app'; // ✅ 是字串
+const bucket = storage.bucket(bucketName); // ✅ 是 Bucket 物件
 
 // 解析時間字串函數
 function parseEventDate(dateStr) {
@@ -34,13 +39,50 @@ function parseEventDate(dateStr) {
       return null;
     };
 
+    const start = formatDate(startDate);
+    const end = formatDate(endDate);
+
+    // 生成活動天數陣列
+    const days = [];
+    if (start && end) {
+      const startDateTime = new Date(start);
+      const endDateTime = new Date(end);
+      const currentDate = new Date(startDateTime);
+
+      while (currentDate <= endDateTime) {
+        days.push(
+          `${currentDate.getFullYear()}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${String(currentDate.getDate()).padStart(2, '0')}`
+        );
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
     return {
-      startDate: formatDate(startDate),
-      endDate: formatDate(endDate)
+      startDate: start,
+      endDate: end,
+      days: days
     };
   } catch (error) {
     logger.warn('解析時間失敗:', error);
-    return { startDate: null, endDate: null };
+    return { startDate: null, endDate: null, days: [] };
+  }
+}
+
+async function uploadImageToStorage(imageUrl, eventId) {
+  try {
+    if (!imageUrl) return '';
+    if (!imageUrl.startsWith('http')) imageUrl = 'https:' + imageUrl;
+    const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data, 'binary');
+    const ext = path.extname(imageUrl.split('?')[0]) || '.png';
+    const fileName = `events/${eventId}${ext}`;
+    const file = bucket.file(fileName);
+    await file.save(buffer, { contentType: response.headers['content-type'] });
+    await file.makePublic();
+    return `https://storage.googleapis.com/${bucketName}/${fileName}`;
+  } catch (e) {
+    logger.warn('圖片上傳失敗:', e);
+    return '';
   }
 }
 
@@ -78,9 +120,10 @@ async function runScraper() {
           const value = $(li).text().replace(label, '').trim();
           if (label.includes('活動時間')) {
             event.date = value; // 保留原始時間字串
-            const { startDate, endDate } = parseEventDate(value);
+            const { startDate, endDate, days } = parseEventDate(value);
             event.startDate = startDate;
             event.endDate = endDate;
+            event.days = days;
           }
           else if (label.includes('活動會場')) event.location = value;
           else if (label.includes('活動內容')) event.content = value;
@@ -101,6 +144,12 @@ async function runScraper() {
     }
 
     logger.info(`解析完成，找到 ${events.length} 個活動`);
+
+    // 上傳所有圖片並取得 Storage 連結
+    for (const event of events) {
+      event.data.imageUrl = await uploadImageToStorage(event.data.image, event.id);
+      delete event.data.image;
+    }
 
     // 獲取現有的活動資料
     const existingEvents = await Promise.all(

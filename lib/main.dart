@@ -11,16 +11,16 @@ import 'firebase_options.dart';
 import 'ui/views/login_page.dart';
 import 'ui/views/home_page.dart';
 import 'ui/views/splash_page.dart';
-import 'ui/views/profile_page.dart';  // 引入 ProfilePage
+import 'ui/views/profile_page.dart'; // 引入 ProfilePage
+import 'ui/views/group_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(ProviderScope(child: MyApp()));  // 確保 ProviderScope 包裹 MyApp
+  runApp(ProviderScope(child: MyApp())); // 確保 ProviderScope 包裹 MyApp
 }
-
 
 class MyApp extends StatelessWidget {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -38,15 +38,16 @@ class MyApp extends StatelessWidget {
 
   final GoRouter _router = GoRouter(
     initialLocation: '/',
-
-    redirect:  (BuildContext context, GoRouterState state){
+    redirect: (BuildContext context, GoRouterState state) {
       final user = FirebaseAuth.instance.currentUser;
       final isLoginPage = state.path == '/login';
       final isLoggedIn = user != null;
 
-      // 如果未登入且不是登入頁，重定向到登入頁
-      print('檢查 isLoginPage: $isLoginPage, isLoggedIn: $isLoggedIn');
-      if (!isLoggedIn && !isLoginPage) {
+      // 如果未登入且不是登入頁或 group 頁，重定向到登入頁
+      final isGroupPage = state.matchedLocation.startsWith('/group/');
+      print(
+          '檢查 isLoginPage: $isLoginPage, isLoggedIn: $isLoggedIn, isGroupPage: $isGroupPage');
+      if (!isLoggedIn && !isLoginPage && !isGroupPage) {
         return '/login';
       }
 
@@ -59,6 +60,13 @@ class MyApp extends StatelessWidget {
     },
     routes: [
       // 根路由
+      GoRoute(
+        path: '/group/:groupId',
+        builder: (context, state) {
+          final groupId = state.pathParameters['groupId']!;
+          return GroupPage(groupId: groupId);
+        },
+      ),
       GoRoute(
         path: '/',
         builder: (context, state) {
@@ -76,6 +84,7 @@ class MyApp extends StatelessWidget {
             },
           );
         },
+
         // 在此路由下加入所有需要登入後才能訪問的子路由
         routes: [
           // 登入頁面
@@ -83,7 +92,9 @@ class MyApp extends StatelessWidget {
           // 登錄後可訪問的頁面
           GoRoute(path: '/home', builder: (context, state) => HomePage()),
           GoRoute(path: '/profile', builder: (context, state) => ProfilePage()),
-          GoRoute(path: '/edit_profile', builder: (context, state) => EditProfilePage()),
+          GoRoute(
+              path: '/edit_profile',
+              builder: (context, state) => EditProfilePage()),
           GoRoute(
             path: '/profile/:userId',
             builder: (context, state) {
@@ -92,10 +103,11 @@ class MyApp extends StatelessWidget {
             },
           ),
           GoRoute(path: '/event', builder: (context, state) => EventPage()),
-          GoRoute(path: '/reservation_manage', builder: (context, state) => ReservationManagePage()),
+          GoRoute(
+              path: '/reservation_manage',
+              builder: (context, state) => ReservationManagePage()),
         ],
-      ),
+      )
     ],
   );
 }
-

@@ -305,14 +305,6 @@ class _EventPageState extends ConsumerState<EventPage> {
                                         return AddReservationDialog(
                                           onConfirm: (identity, character) {
                                             ref
-                                                .read(userReservationsProvider
-                                                    .notifier)
-                                                .addReservation(
-                                                  eventViewModel.event.id,
-                                                  identity,
-                                                  character: character,
-                                                );
-                                            ref
                                                 .read(eventsNotifierProvider
                                                     .notifier)
                                                 .loadEvents();

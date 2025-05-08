@@ -42,15 +42,6 @@ class ReservationRepository {
       await eventRef.update({
         'participants': FieldValue.arrayUnion([reservationRef.id])
       });
-
-      // 如果是子活動，也更新父活動的參與者列表
-      if (reservation.parentEventId != null) {
-        final parentEventRef =
-            _firestore.collection('events').doc(reservation.parentEventId);
-        await parentEventRef.update({
-          'participants': FieldValue.arrayUnion([reservationRef.id])
-        });
-      }
     }
   }
 
@@ -75,15 +66,6 @@ class ReservationRepository {
       await eventRef.update({
         'participants': FieldValue.arrayRemove([reservationId])
       });
-
-      // 如果是子活動，也從父活動中移除
-      if (reservation.parentEventId != null) {
-        final parentEventRef =
-            _firestore.collection('events').doc(reservation.parentEventId);
-        await parentEventRef.update({
-          'participants': FieldValue.arrayRemove([reservationId])
-        });
-      }
 
       // 刪除預定
       await _firestore.collection('reservations').doc(reservationId).delete();

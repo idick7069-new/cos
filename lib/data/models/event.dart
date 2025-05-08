@@ -14,7 +14,7 @@ class Event {
   final String updateDate;
   final String url;
   final List<String> participants;
-  final String? parentEventId; // 父活動ID
+  final List<String> days; // 新增，活動所有天數
   final int? dayNumber; // 第幾天 (1, 2, 3...)
   final String displayTitle; // 顯示用標題 (包含第幾天)
 
@@ -32,7 +32,7 @@ class Event {
     required this.updateDate,
     required this.url,
     this.participants = const [],
-    this.parentEventId,
+    this.days = const [],
     this.dayNumber,
     String? displayTitle,
   }) : displayTitle = displayTitle ??
@@ -54,7 +54,7 @@ class Event {
       updateDate: data['updateDate'] as String? ?? '',
       url: data['url'] as String? ?? '',
       participants: List<String>.from(data['participants'] ?? []),
-      parentEventId: data['parentEventId'] as String?,
+      days: List<String>.from(data['days'] ?? []),
       dayNumber: data['dayNumber'] as int?,
     );
   }
@@ -73,7 +73,7 @@ class Event {
       'updateDate': updateDate,
       'url': url,
       'participants': participants,
-      'parentEventId': parentEventId,
+      'days': days,
       'dayNumber': dayNumber,
     };
   }
@@ -92,7 +92,7 @@ class Event {
     String? updateDate,
     String? url,
     List<String>? participants,
-    String? parentEventId,
+    List<String>? days,
     int? dayNumber,
     String? displayTitle,
   }) {
@@ -110,7 +110,7 @@ class Event {
       updateDate: updateDate ?? this.updateDate,
       url: url ?? this.url,
       participants: participants ?? this.participants,
-      parentEventId: parentEventId ?? this.parentEventId,
+      days: days ?? this.days,
       dayNumber: dayNumber ?? this.dayNumber,
       displayTitle: displayTitle,
     );
@@ -165,7 +165,7 @@ class Event {
       updateDate: this.updateDate,
       url: this.url,
       participants: [],
-      parentEventId: this.id,
+      days: [],
       dayNumber: day,
     );
   }

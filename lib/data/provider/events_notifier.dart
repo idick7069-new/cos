@@ -24,7 +24,6 @@ class EventsNotifier extends StateNotifier<List<EventViewModel>> {
     final events =
         eventSnapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
 
-
     // 2. 處理活動
     final List<Event> processedEvents = [];
     for (var event in events) {
@@ -47,12 +46,10 @@ class EventsNotifier extends StateNotifier<List<EventViewModel>> {
         final endDate = DateTime.parse(endDateStr);
         final daysDifference = endDate.difference(startDate).inDays + 1;
 
-
         for (var dayNumber = 1; dayNumber <= daysDifference; dayNumber++) {
           final currentDate = startDate.add(Duration(days: dayNumber - 1));
           final formattedDate =
               '${currentDate.year}/${currentDate.month.toString().padLeft(2, '0')}/${currentDate.day.toString().padLeft(2, '0')}';
-
 
           final dayEvent = event.generateDayEvent(dayNumber).copyWith(
                 date: formattedDate,
@@ -60,7 +57,6 @@ class EventsNotifier extends StateNotifier<List<EventViewModel>> {
                 startDate: startDateStr.replaceAll("-", "/"),
                 endDate: endDateStr.replaceAll("-", "/"),
               );
-
 
           processedEvents.add(dayEvent);
         }
@@ -92,75 +88,31 @@ class EventsNotifier extends StateNotifier<List<EventViewModel>> {
   }
 
   // 檢查使用者是否已經預定了某一天
-  bool hasReservationForDay(String eventId) {
-    return state.any((vm) => vm.event.id == eventId && vm.isParticipating);
+  bool hasReservationForDay(String eventId, String day) {
+    return state.any((vm) =>
+        vm.event.id == eventId && vm.event.date == day && vm.isParticipating);
   }
 
   // 檢查使用者是否已經預定了相關的任何一天
   bool hasAnyReservationForEvent(EventViewModel eventViewModel) {
-    final relatedEvents = getRelatedEvents(eventViewModel);
-    return relatedEvents.any((vm) => vm.isParticipating);
+    final event = eventViewModel.event;
+    return state.any((vm) => vm.event.id == event.id && vm.isParticipating);
   }
 
   // 獲取使用者已預定的天數
   List<EventViewModel> getReservedDays(EventViewModel eventViewModel) {
-    final relatedEvents = getRelatedEvents(eventViewModel);
-    return relatedEvents.where((vm) => vm.isParticipating).toList();
+    final event = eventViewModel.event;
+    return state
+        .where((vm) => vm.event.id == event.id && vm.isParticipating)
+        .toList();
   }
 
   // 獲取特定日期的活動
   List<EventViewModel> getEventsForDate(DateTime date) {
     final formattedDate =
         '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
-
-
-    final events = state.where((viewModel) {
-      final event = viewModel.event;
-      return event.date == formattedDate;
-    }).toList();
-
-    for (var e in events) {
-      print('- ${e.event.displayTitle} (${e.event.date})');
-    }
-
-    return events;
-  }
-
-  // 獲取相關的多天活動
-  List<EventViewModel> getRelatedEvents(EventViewModel eventViewModel) {
-    final event = eventViewModel.event;
-    if (event.parentEventId != null) {
-      return state
-          .where((vm) =>
-              vm.event.parentEventId == event.parentEventId ||
-              vm.event.id == event.parentEventId)
-          .toList();
-    }
     return state
-        .where((vm) =>
-            vm.event.id == event.id || vm.event.parentEventId == event.id)
-        .toList();
-  }
-
-  // 獲取父活動
-  EventViewModel? getParentEvent(EventViewModel eventViewModel) {
-    final event = eventViewModel.event;
-    if (event.parentEventId != null) {
-      return state.firstWhere(
-        (vm) => vm.event.id == event.parentEventId,
-        orElse: () => eventViewModel,
-      );
-    }
-    return eventViewModel;
-  }
-
-  // 獲取特定活動的所有天數
-  List<EventViewModel> getAllDaysForEvent(EventViewModel eventViewModel) {
-    final event = eventViewModel.event;
-    final String targetId = event.parentEventId ?? event.id;
-    return state
-        .where((vm) =>
-            vm.event.id == targetId || vm.event.parentEventId == targetId)
+        .where((viewModel) => viewModel.event.date == formattedDate)
         .toList();
   }
 }

@@ -72,7 +72,7 @@ class ReservationsNotifier
   }
 
   Future<void> addReservation(String eventId, IdentityType identity,
-      {String? character}) async {
+      {String? character, required String day}) async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) return;
@@ -94,6 +94,7 @@ class ReservationsNotifier
             organizer: '',
             updateDate: '',
             url: '',
+            days: [],
           ),
           isParticipating: false,
         ),
@@ -108,6 +109,7 @@ class ReservationsNotifier
         identity: identity,
         character: character,
         createdAt: DateTime.now(),
+        day: day,
       );
 
       await _repository.addReservation(reservation);

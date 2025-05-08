@@ -9,7 +9,7 @@ class Reservation {
   final IdentityType identity;
   final String? character;
   final DateTime createdAt;
-  final String? parentEventId;
+  final String day;
 
   Reservation({
     required this.id,
@@ -18,7 +18,7 @@ class Reservation {
     required this.identity,
     this.character,
     required this.createdAt,
-    this.parentEventId,
+    required this.day,
   });
 
   factory Reservation.fromFirestore(DocumentSnapshot doc) {
@@ -30,7 +30,7 @@ class Reservation {
       identity: IdentityType.values[data['identity'] ?? 0],
       character: data['character'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      parentEventId: data['parentEventId'],
+      day: data['day'] ?? '',
     );
   }
 
@@ -41,7 +41,7 @@ class Reservation {
       'identity': identity.index,
       'character': character,
       'createdAt': createdAt,
-      'parentEventId': parentEventId,
+      'day': day,
     };
   }
 }
