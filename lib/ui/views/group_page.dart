@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GroupPage extends StatefulWidget {
   final String groupId;
@@ -226,7 +227,23 @@ class _EventCardState extends State<_EventCard> {
                 if (event['location'] != null) Text('地點：${event['location']}'),
                 Text('參加人數：${widget.eventReservations.length}'),
                 Text('日期：${event['date']}'),
-                Text('詳細資訊：${event['url']}'),
+                GestureDetector(
+                  onTap: () async {
+                    final url = event['url'] ?? '';
+                    if (url.isNotEmpty) {
+                      // ignore: deprecated_member_use
+                      await launchUrl(Uri.parse(url),
+                          mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Text(
+                    '詳細資訊：${event['url'] ?? ''}',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
               ],
             ),
             trailing: Row(
