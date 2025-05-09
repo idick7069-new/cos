@@ -205,13 +205,19 @@ class _EventCardState extends State<_EventCard> {
         children: [
           ListTile(
             leading: widget.imageUrl.isNotEmpty
-                ? Image.network(
-                    widget.imageUrl.startsWith('http')
-                        ? widget.imageUrl
-                        : 'https:${widget.imageUrl}',
-                    width: 300,
-                    height: 100,
-                    fit: BoxFit.cover)
+                ? LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = MediaQuery.of(context).size.width < 600;
+                      return Image.network(
+                        widget.imageUrl.startsWith('http')
+                            ? widget.imageUrl
+                            : 'https:${widget.imageUrl}',
+                        width: isMobile ? 64 : 120,
+                        height: isMobile ? 64 : 90,
+                        fit: BoxFit.cover,
+                      );
+                    },
+                  )
                 : null,
             title: Text(event['title'] ?? ''),
             subtitle: Column(
@@ -219,6 +225,8 @@ class _EventCardState extends State<_EventCard> {
               children: [
                 if (event['location'] != null) Text('地點：${event['location']}'),
                 Text('參加人數：${widget.eventReservations.length}'),
+                Text('日期：${event['date']}'),
+                Text('詳細資訊：${event['url']}'),
               ],
             ),
             trailing: Row(
